@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agnes Studio — text to video</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="aurora" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"></span>
+    <div>
+      <h1>Agnes Studio</h1>
+      <p class="tagline">text → short video · Agnes Video 2.5</p>
+    </div>
+  </div>
+
+  <div class="topbar-actions">
+    <div class="key-field" id="keyField">
+      <input id="apiKey" type="password" placeholder="Paste AGNES_API_KEY" autocomplete="off" spellcheck="false" aria-label="Agnes API key" />
+      <button id="saveKey" class="btn btn-ghost" type="button">Save key</button>
+    </div>
+    <span id="keyPill" class="pill pill-muted" title="Key status">no key</span>
+
+    <label class="select-wrap" title="Where requests are sent from">
+      <span class="select-label">Network</span>
+      <select id="transport" aria-label="Network transport">
+        <option value="server">server (local proxy)</option>
+        <option value="direct">direct (browser)</option>
+      </select>
+    </label>
+
+    <button id="openTab" class="btn btn-ghost hidden" type="button">Open in tab</button>
+  </div>
+</header>
+
+<main class="studio">
+  <!-- ───────────────────────── composer ───────────────────────── -->
+  <section class="card composer" aria-label="Composer">
+    <div class="card-head">
+      <h2>Compose</h2>
+      <span class="hint" id="shortcutHint">⌘/Ctrl + Enter to generate</span>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Prompt</span>
+      <textarea id="prompt" rows="5" placeholder="a silver sports car drifting through a rain-soaked neon street at night, cinematic tracking shot, natural ambience" spellcheck="true"></textarea>
+    </label>
+
+    <div class="chips" id="chips" role="group" aria-label="Style presets">
+      <button type="button" class="chip" data-preset="cinematic">Cinematic</button>
+      <button type="button" class="chip" data-preset="neon">Neon night</button>
+      <button type="button" class="chip" data-preset="product">Product</button>
+      <button type="button" class="chip" data-preset="aerial">Aerial</button>
+      <button type="button" class="chip" data-preset="dreamy">Dreamy</button>
+      <button type="button" class="chip" data-preset="macro">Macro</button>
+    </div>
+
+    <div class="grid-2">
+      <label class="field">
+        <span class="field-label">Model</span>
+        <select id="model">
+          <option value="agnes-video-2.5-flash" selected>2.5 Flash · fast</option>
+          <option value="agnes-video-2.5">2.5 · full quality</option>
+          <option value="agnes-video-v2.0">v2.0 · legacy</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Aspect ratio</span>
+        <select id="aspect">
+          <option value="16:9" selected>16:9 landscape</option>
+          <option value="9:16">9:16 vertical</option>
+          <option value="1:1">1:1 square</option>
+          <option value="4:3">4:3</option>
+          <option value="3:4">3:4 portrait</option>
+          <option value="21:9">21:9 ultrawide</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Mode</span>
+        <select id="mode">
+          <option value="text" selected>text — prompt only</option>
+          <option value="keyframe">keyframe — first / last frame</option>
+          <option value="reference">reference — images / audio / video</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Resolution</span>
+        <select id="size">
+          <option value="720P" selected>720P</option>
+          <option value="1080P">1080P</option>
+          <option value="1K">1K</option>
+          <option value="2K">2K</option>
+        </select>
+        <span class="field-note" id="sizeNote">Flash is locked to 720P</span>
+      </label>
+    </div>
+
+    <label class="field">
+      <span class="field-label">Duration <em id="secondsLabel">5s</em></span>
+      <input id="seconds" type="range" min="4" max="12" step="1" value="5" />
+      <div class="range-scale"><span>4s</span><span>8s</span><span>12s</span></div>
+    </label>
+
+    <label class="field">
+      <span class="field-label">Seed <em>optional</em></span>
+      <input id="seed" type="number" inputmode="numeric" placeholder="e.g. 42" />
+    </label>
+
+    <div id="keyframeFields" class="conditional hidden">
+      <label class="field">
+        <span class="field-label">First frame URL</span>
+        <input id="firstFrame" type="url" placeholder="https://…/first.png" />
+      </label>
+      <label class="field">
+        <span class="field-label">Last frame URL</span>
+        <input id="lastFrame" type="url" placeholder="https://…/last.png" />
+      </label>
+    </div>
+
+    <div id="referenceFields" class="conditional hidden">
+      <label class="field">
+        <span class="field-label">Reference URLs <em>one per line · sorted by extension</em></span>
+        <textarea id="references" rows="3" placeholder="https://…/character.png&#10;https://…/beat.mp3&#10;https://…/motion.mp4" spellcheck="false"></textarea>
+        <span class="field-note" id="referenceNote">Refer to them in the prompt as &lt;Picture 1&gt;, &lt;Audio 1&gt;, &lt;Video 1&gt;.</span>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button id="generate" class="btn btn-primary" type="button">
+        <span class="spinner hidden" id="spinner" aria-hidden="true"></span>
+        <span id="generateLabel">Generate</span>
+      </button>
+      <button id="stop" class="btn btn-danger hidden" type="button">Stop polling</button>
+      <span id="costHint" class="cost-hint"></span>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── preview ───────────────────────── -->
+  <section class="card preview" aria-label="Preview">
+    <div class="card-head">
+      <h2>Preview</h2>
+      <span class="hint" id="transportHint">local server proxy</span>
+    </div>
+
+    <div id="emptyState" class="empty">
+      <div class="empty-orb" aria-hidden="true"></div>
+      <p class="empty-title">Nothing rendered yet</p>
+      <p class="empty-sub">Describe a shot, pick a look, hit Generate. A 5s clip usually takes 40–120s.</p>
+    </div>
+
+    <div id="stage" class="stage hidden">
+      <video id="video" controls playsinline preload="metadata"></video>
+      <div id="progressWrap" class="progress-wrap">
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        <div class="progress-meta">
+          <span id="statusText">queued</span>
+          <span id="elapsedText">0s</span>
+        </div>
+      </div>
+      <div class="result-meta">
+        <div class="meta-row"><span class="meta-key">video_id</span><code id="videoId">—</code></div>
+        <div class="meta-row"><span class="meta-key">url</span><code id="videoUrl">—</code></div>
+      </div>
+      <div class="result-actions">
+        <a id="download" class="btn btn-primary" href="#" download="agnes.mp4">Download mp4</a>
+        <button id="copyLink" class="btn btn-ghost" type="button">Copy link</button>
+        <button id="regenerate" class="btn btn-ghost" type="button">Regenerate</button>
+        <button id="openRemote" class="btn btn-ghost hidden" type="button">Open video</button>
+      </div>
+    </div>
+
+    <div id="errorBox" class="error-box hidden" role="alert">
+      <strong id="errorTitle">Something went wrong</strong>
+      <p id="errorText"></p>
+    </div>
+
+    <div class="history">
+      <div class="history-head">
+        <h3>Session history</h3>
+        <button id="clearHistory" class="btn btn-tiny" type="button">Clear</button>
+      </div>
+      <ul id="historyList" class="history-list"></ul>
+      <p id="historyEmpty" class="history-empty">Finished clips appear here. Hover a thumbnail to scrub.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span>Agnes Studio · stdlib only · key kept in memory &amp; sessionStorage</span>
+  <span id="footerStatus">server: unknown</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
